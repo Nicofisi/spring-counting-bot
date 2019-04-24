@@ -23,10 +23,15 @@ data class CChannel(
 
 @Entity
 @Table(name = "count_info")
+@IdClass(CUserCountInfoId::class)
 data class CUserCountInfo(
-    @EmbeddedId val id: CUserCountInfoId,
+    @Id val userId: Long,
+    @Id val channelId: Long,
+    @Id @Column(name = "at_date") val date: Date,
     var amount: Int
-)
+) {
+    constructor(id: CUserCountInfoId, amount: Int) : this(id.userId, id.channelId, id.date, amount)
+}
 
 @Embeddable
 data class CUserCountInfoId(

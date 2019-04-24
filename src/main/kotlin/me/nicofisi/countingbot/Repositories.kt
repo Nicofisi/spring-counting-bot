@@ -7,5 +7,5 @@ interface UserRepository : CrudRepository<CUser, Long>
 interface ChannelRepository : CrudRepository<CChannel, Long>
 
 interface CountInfoRepository : CrudRepository<CUserCountInfo, CUserCountInfoId> {
-//    fun deleteAllByChannelId(channelId: Long): List<CUserCountInfo>
+    fun deleteAllByChannelId(channelId: Long): List<CUserCountInfo>
 }

@@ -2,26 +2,31 @@ package me.nicofisi.countingbot
 
 import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.events.ReadyEvent
+import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateTopicEvent
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.sql.Date
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-import kotlin.system.measureTimeMillis
 
 @Service
 class CountingService(
     private val userRepository: UserRepository,
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
+    private val topicUpdateService: TopicUpdateService,
     private val properties: CountingProperties
 ) : ListenerAdapter() {
+    val logger = Logger.getLogger(javaClass.canonicalName)!!
+
     override fun onReady(event: ReadyEvent) {
-        Logger.getLogger("counting").info("Listening for Discord events")
+        logger.info("Listening for Discord events")
     }
 
+    @Transactional
     override fun onGuildMessageReceived(event: GuildMessageReceivedEvent) {
         val message = event.message
         val channel = event.channel
@@ -75,9 +80,10 @@ class CountingService(
 
                 countingChannel?.run {
                     channelRepository.delete(this)
-//                    countInfoRepository.deleteAllByChannelId(id)
+                    countInfoRepository.deleteAllByChannelId(id)
                 }
-                channel.sendMessage("Done")
+                channel.sendMessage("Done").queue()
+                return
             }
         }
 
@@ -102,7 +108,6 @@ class CountingService(
 
             channelRepository.save(countingChannel)
 
-
             val countingUser = userRepository.findByIdOrNull(author.idLong) ?: CUser(author.idLong, "")
             countingUser.cachedName = author.name
             userRepository.save(countingUser)
@@ -111,6 +116,24 @@ class CountingService(
             val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CUserCountInfo(countInfoId, 0)
             countInfo.amount++
             countInfoRepository.save(countInfo)
+
+            topicUpdateService.channelsToUpdate.add(channel)
         }
+    }
+
+    override fun onTextChannelUpdateTopic(event: TextChannelUpdateTopicEvent) {
+        val old = event.oldTopic
+        val new = event.newTopic ?: return
+
+        if (old != null && new.length == old.length) { // there is a wasted run for 9 -> 10, 99 -> 100 etc.
+            new.forEach outer@{ c1 ->
+                old.forEach { c2 ->
+                    if (c1 != c2 && !c1.isDigit() && !c2.isDigit()) return@outer
+                }
+            }
+            return // only digits changed, aka probably it's us who changed the topic
+        }
+
+        topicUpdateService.tryUpdateChannelTopic(event.channel)
     }
 }
