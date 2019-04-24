@@ -6,14 +6,14 @@ import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateTopicEven
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.springframework.data.repository.findByIdOrNull
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Date
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
-@Service
-class CountingService(
+@Component
+class CountingComponent(
     private val userRepository: UserRepository,
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
@@ -93,7 +93,7 @@ class CountingService(
 
             if (author.isBot
                 || countingChannel.lastUserId == author.idLong
-                || !CountLogic.messageMatchesNumber(rawContent, expectedNumber)
+                || !CountingLogic.messageMatchesNumber(rawContent, expectedNumber)
             ) {
                 message.deleteWithFailFeedback()
                 return

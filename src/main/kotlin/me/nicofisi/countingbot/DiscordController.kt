@@ -4,10 +4,10 @@ import net.dv8tion.jda.api.JDABuilder
 import org.springframework.stereotype.Controller
 
 @Controller
-class DiscordController(countingService: CountingService, properties: CountingProperties) {
+class DiscordController(countingComponent: CountingComponent, properties: CountingProperties) {
     init {
         JDABuilder(properties.discordToken)
-            .addEventListeners(countingService)
+            .addEventListeners(countingComponent)
             .build()
     }
 }

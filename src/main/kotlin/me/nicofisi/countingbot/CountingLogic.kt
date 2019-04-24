@@ -1,6 +1,6 @@
 package me.nicofisi.countingbot
 
-object CountLogic {
+object CountingLogic {
     private val englishDigitNames =
         listOf("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
     private val numberEmojis =
