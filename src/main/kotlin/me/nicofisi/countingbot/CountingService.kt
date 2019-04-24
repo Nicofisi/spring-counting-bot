@@ -80,7 +80,7 @@ class CountingService(
 
                 countingChannel?.run {
                     channelRepository.delete(this)
-                    countInfoRepository.deleteAllByChannelId(id)
+                    countInfoRepository.deleteAllByIdChannelId(id)
                 }
                 channel.sendMessage("Done").queue()
                 return
