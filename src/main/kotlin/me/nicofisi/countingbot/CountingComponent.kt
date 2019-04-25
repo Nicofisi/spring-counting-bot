@@ -32,7 +32,7 @@ class CountingComponent(
         val channel = event.channel
         val guild = event.guild
         val author = message.author
-        val member = message.member!!
+        val member = message.member ?: throw RuntimeException("Author is not a member: " + author.name)
         val rawContent = message.contentRaw
         val prefix = properties.discordPrefix
 

@@ -7,7 +7,7 @@ import net.dv8tion.jda.api.entities.Message
 fun Message.deleteWithFailFeedback() {
     require(channelType == ChannelType.TEXT)
 
-    if (guild.selfMember.hasPermission(Permission.MESSAGE_MANAGE)) {
+    if (guild.selfMember.hasPermission(textChannel, Permission.MESSAGE_MANAGE)) {
         delete().queue()
     } else {
         channel.sendMessage("Error: I lack message delete permissions").queue()
