@@ -40,12 +40,12 @@ class CountingComponent(
 
         val countingChannel = channelRepository.findByIdOrNull(channel.idLong)
 
-        fun requireOpWithFeedback(): Boolean {
-            return if (properties.discordAdminIds.contains(author.idLong) ||
+        fun isOp() = properties.discordAdminIds.contains(author.idLong) ||
                 member.hasPermission(Permission.MANAGE_SERVER)
-            ) {
-                true
-            } else {
+
+        fun requireOpWithFeedback(): Boolean {
+            return if (isOp()) true
+            else {
                 channel.sendMessage("${author.asMention}, you need the Manage Server permission to use this command")
                     .queue {
                         it.delete().queueAfter(10, TimeUnit.SECONDS)
@@ -89,6 +89,9 @@ class CountingComponent(
 
         // if this channel is registered as a counting channel
         if (countingChannel != null) {
+            if (rawContent.startsWith(")") && isOp())
+                return
+
             val expectedNumber = countingChannel.nextNumber
 
             if (author.isBot
