@@ -23,7 +23,9 @@ dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
     implementation 'net.dv8tion:JDA:4.ALPHA.0_79'
     runtimeOnly 'mysql:mysql-connector-java'
+    
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.4.2'
 }
 
 compileKotlin {
