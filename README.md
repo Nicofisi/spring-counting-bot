@@ -10,4 +10,4 @@ Made in Kotlin with Spring Boot and JDA, uses MySQL as the database.
 - either use `./gradlew bootRun` to run
 - or `./gradlew build` to build a standalone application jar in `build/libs/...` and then run it with `java -jar location/file.jar`
 
-A more detailed README coming Soon™
+A more detailed README is coming Soon™
