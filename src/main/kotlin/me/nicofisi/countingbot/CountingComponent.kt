@@ -5,12 +5,12 @@ import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateTopicEvent
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
+import org.slf4j.LoggerFactory
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Date
 import java.util.concurrent.TimeUnit
-import java.util.logging.Logger
 
 @Component
 class CountingComponent(
@@ -18,9 +18,10 @@ class CountingComponent(
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
     private val topicUpdateService: TopicUpdateService,
+    private val statsComponent: StatsComponent,
     private val properties: CountingProperties
 ) : ListenerAdapter() {
-    val logger = Logger.getLogger(javaClass.canonicalName)!!
+    val logger = LoggerFactory.getLogger(javaClass)!!
 
     override fun onReady(event: ReadyEvent) {
         logger.info("Listening for Discord events")
@@ -43,15 +44,17 @@ class CountingComponent(
         fun isOp() = properties.discordAdminIds.contains(author.idLong) ||
                 member.hasPermission(Permission.MANAGE_SERVER)
 
+        if (statsComponent.onGuildMessageReceived(event)) return
+
         fun requireOpWithFeedback(): Boolean {
             return if (isOp()) true
             else {
                 channel.sendMessage("${author.asMention}, you need the Manage Server permission to use this command")
                     .queue {
-                        it.delete().queueAfter(10, TimeUnit.SECONDS)
+                        it.delete().queueAfter(MESSAGE_DELETE_DELAY_IN_SECONDS, TimeUnit.SECONDS)
 
                         if (countingChannel == null)
-                            message.delete().queueAfter(10, TimeUnit.SECONDS)
+                            message.delete().queueAfter(MESSAGE_DELETE_DELAY_IN_SECONDS, TimeUnit.SECONDS)
                         else
                             message.delete().queue()
                     }
@@ -115,8 +118,8 @@ class CountingComponent(
             countingUser.cachedName = author.name
             userRepository.save(countingUser)
 
-            val countInfoId = CUserCountInfoId(author.idLong, channel.idLong, Date(System.currentTimeMillis()))
-            val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CUserCountInfo(countInfoId, 0)
+            val countInfoId = CCountInfoId(author.idLong, channel.idLong, Date(System.currentTimeMillis()))
+            val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CCountInfo(countInfoId, 0)
             countInfo.amount++
             countInfoRepository.save(countInfo)
 

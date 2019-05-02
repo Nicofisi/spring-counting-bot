@@ -8,6 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @EnableScheduling
 class SpringCountingBotApplication
 
+const val MESSAGE_DELETE_DELAY_IN_SECONDS = 10L
+
 fun main(args: Array<String>) {
     runApplication<SpringCountingBotApplication>(*args)
 }

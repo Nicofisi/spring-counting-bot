@@ -28,7 +28,7 @@ object CountingLogic {
         split.forEach { word ->
             // 123
             val wordInt = word.toIntOrNull()
-            if (wordInt != null) {
+            if (wordInt != null && wordInt >= 0) {
                 digits.addAll(word.map { it.toString().toInt() })
                 return@forEach
             }

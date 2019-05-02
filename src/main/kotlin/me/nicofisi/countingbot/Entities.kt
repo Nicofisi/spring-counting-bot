@@ -23,14 +23,19 @@ data class CChannel(
 
 @Entity
 @Table(name = "count_info")
-data class CUserCountInfo(
-    @EmbeddedId val id: CUserCountInfoId,
+data class CCountInfo(
+    @EmbeddedId val id: CCountInfoId,
     var amount: Int
 )
 
 @Embeddable
-data class CUserCountInfoId(
+data class CCountInfoId(
     val userId: Long,
     val channelId: Long,
     @Column(name = "at_date") val date: Date
 ) : Serializable
+
+interface CTopQueryResult {
+    fun getUserId(): Long
+    fun getCounts(): Int
+}
