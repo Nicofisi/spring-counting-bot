@@ -10,6 +10,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Date
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 @Component
@@ -118,7 +119,7 @@ class CountingComponent(
             countingUser.cachedName = author.name
             userRepository.save(countingUser)
 
-            val countInfoId = CCountInfoId(author.idLong, channel.idLong, Date(System.currentTimeMillis()))
+            val countInfoId = CCountInfoId(author.idLong, channel.idLong, Date.valueOf(LocalDate.now()))
             val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CCountInfo(countInfoId, 0)
             countInfo.amount++
             countInfoRepository.save(countInfo)

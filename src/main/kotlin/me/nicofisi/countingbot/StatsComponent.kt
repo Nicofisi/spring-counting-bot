@@ -8,6 +8,11 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.awt.Color
+import java.sql.Date
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoField
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
@@ -78,14 +83,41 @@ class StatsComponent(
             }
 
             val page = max(1, split.getOrNull(2)?.toIntOrNull() ?: 1) // TODO error feedback?
+            val pageRequest = PageRequest.of(page - 1, 15)
 
-            val top = when (statType) {
-                StatType.ALL_TIME ->
-                    countInfoRepository.getAllTimeCountTopByChannelId(
-                        mentionedCountingChannel.id,
-                        PageRequest.of(page - 1, 15)
+            val (top, endsOnMidnightAt) = when (statType) {
+                StatType.DAY -> {
+                    Pair(
+                        countInfoRepository.getCountTopByChannelIdAndDate(
+                            mentionedCountingChannel.id,
+                            Date.valueOf(LocalDate.now()),
+                            pageRequest
+                        ),
+                        LocalDate.now().plusDays(1)
                     )
-                else -> TODO()
+                }
+                StatType.WEEK -> {
+                    val startDate = LocalDate.now().with(ChronoField.DAY_OF_WEEK, 1)
+                    val endDate = LocalDate.now().with(ChronoField.DAY_OF_WEEK, 7)
+
+                    Pair(
+                        countInfoRepository.getCountTopByChannelIdBetweenDates(
+                            mentionedCountingChannel.id,
+                            Date.valueOf(startDate),
+                            Date.valueOf(endDate),
+                            pageRequest
+                        ),
+                        endDate.plusDays(1)
+                    )
+                }
+                StatType.ALL_TIME ->
+                    Pair(
+                        countInfoRepository.getAllTimeCountTopByChannelId(
+                            mentionedCountingChannel.id,
+                            pageRequest
+                        ),
+                        null
+                    )
             }
 
             val embed = EmbedBuilder().apply {
@@ -100,25 +132,58 @@ class StatsComponent(
                     appendDescription("in ${mentionedChannel.asMention}\n\n")
 
                 top.withIndex().forEach { (index, topRow) ->
-//                    val memberDisplay = event.guild.getMemberById(topRow.getUserId())?.effectiveName
-//                        ?: "*unknown member*"
                     val memberMention = event.guild.getMemberById(topRow.getUserId())?.asMention
                         ?: "unknown member"
 
                     appendDescription(
                         "**${index + 1}.** $memberMention - ${topRow.getCounts()}\n"
                     )
-
-                    setFooter("Page $page of ${top.totalPages}" + when (statType) {
-                        StatType.DAY -> " - day resets in " + TODO()
-                        StatType.WEEK -> " - week resets in " + TODO()
-                        StatType.ALL_TIME -> ""
-                    })
-
-                    setColor(Color(59, 135, 83))
                 }
-            }
 
+
+                val resetsIn = endsOnMidnightAt?.let {
+                    val now = LocalDateTime.now()
+                    val later = it.atTime(0, 0)
+
+                    val days = ChronoUnit.DAYS.between(now, later)
+                    val hours = ChronoUnit.HOURS.between(now, later) - days * 24
+                    val minutes = ChronoUnit.MINUTES.between(now, later) - days * 24 - hours * 60
+                    val seconds = ChronoUnit.SECONDS.between(now, later) - days * 24 - hours * 60 - minutes * 60
+
+                    var str = ""
+
+                    var addedUnits = 0
+
+                    for ((index, value) in listOf(days, hours, minutes, seconds).withIndex()) {
+                        if (value != 0L) {
+                            val unit = when (index) {
+                                0 -> "day"
+                                1 -> "hour"
+                                2 -> "minute"
+                                else -> "second"
+                            }
+                            if (addedUnits == 1)
+                                str += " and "
+                            str += "$value ${if (value == 1L) unit else unit + "s"}"
+                            addedUnits++
+                        }
+
+                        if (addedUnits == 2) break
+                    }
+
+                    str
+                }
+
+                setFooter(
+                    "Page $page of ${top.totalPages}" + when (statType) {
+                        StatType.DAY -> " - day resets in $resetsIn"
+                        StatType.WEEK -> " - week resets in $resetsIn"
+                        StatType.ALL_TIME -> ""
+                    }
+                )
+
+                setColor(Color(59, 135, 83))
+            }
 
             channel.sendMessage(embed.build()).queue()
 
