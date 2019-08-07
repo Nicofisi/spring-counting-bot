@@ -26,6 +26,8 @@ enum class StatType(vararg val aliases: String) {
     ALL_TIME("all", "alltime", "all-time", "all_time", "forever", "ever", "a")
 }
 
+const val PAGE_SIZE = 10
+
 @Component
 class StatsComponent(
     private val userRepository: UserRepository,
@@ -44,14 +46,13 @@ class StatsComponent(
         val message = event.message
         val channel = event.channel
         val guild = event.guild
-        val author = message.author
-        val member = message.member!!
+//        val author = message.author
+//        val member = message.member
         val rawContent = message.contentRaw
-        val prefix = properties.discordPrefix
+//        val prefix = properties.discordPrefix
 
         val thisCountingChannel = channelRepository.findByIdOrNull(channel.idLong)
 
-//        if (rawContent.startsWith("<#") && rawContent.slice(20 until (22 + prefix.length)) == "> $prefix") {
         if (rawContent.startsWith("<#") && rawContent.drop(20).take(2) == "> ") {
             val mentionedChannel = rawContent.slice(2 until 20).toLongOrNull()
                 ?.let { guild.getTextChannelById(it) }
@@ -87,7 +88,7 @@ class StatsComponent(
             }
 
             val page = max(1, split.getOrNull(2)?.toIntOrNull() ?: 1) // TODO error feedback?
-            val pageRequest = PageRequest.of(page - 1, 10)
+            val pageRequest = PageRequest.of(page - 1, PAGE_SIZE)
 
             val (top, endsOnMidnightAt) = when (statType) {
                 StatType.DAY -> {
@@ -140,7 +141,7 @@ class StatsComponent(
                         ?: "unknown member"
 
                     appendDescription(
-                        "**${index + 1}.** $memberMention - ${topRow.getCounts()}\n"
+                        "**${index + 1 + ((page - 1) * PAGE_SIZE)}.** $memberMention - ${topRow.getCounts()}\n"
                     )
                 }
 

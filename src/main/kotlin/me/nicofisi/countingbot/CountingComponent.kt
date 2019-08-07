@@ -61,7 +61,7 @@ class CountingComponent(
         val countingChannel = channelRepository.findByIdOrNull(channel.idLong)
 
         fun isOp() = author.idLong in properties.discordAdminIds ||
-                (member?.hasPermission(Permission.MANAGE_SERVER) ?: false) // null for webhooks
+                (member?.hasPermission(Permission.MANAGE_SERVER) ?: false) // null member for webhooks
 
         if (statsComponent.onGuildMessageReceived(event)) return
 
