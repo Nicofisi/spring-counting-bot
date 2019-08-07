@@ -1,7 +1,8 @@
-package me.nicofisi.countingbot
+package me.nicofisi.countingbot.data
 
 import java.io.Serializable
 import java.sql.Date
+import java.sql.Timestamp
 import javax.persistence.*
 
 @Entity
@@ -33,6 +34,20 @@ data class CCountInfoId(
     val userId: Long,
     val channelId: Long,
     @Column(name = "at_date") val date: Date
+) : Serializable
+
+@Entity
+@Table(name = "unlocked_achievements")
+data class CUnlockedAchievement(
+    @EmbeddedId val id: CUnlockedAchievementId,
+    val unlockedAt: Timestamp
+)
+
+@Embeddable
+data class CUnlockedAchievementId(
+    val userId: Long,
+    val channelId: Long,
+    val achievementId: Int
 ) : Serializable
 
 interface CTopQueryResult {

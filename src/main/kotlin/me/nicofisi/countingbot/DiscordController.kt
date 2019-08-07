@@ -5,9 +5,7 @@ import org.springframework.stereotype.Controller
 
 @Controller
 class DiscordController(countingComponent: CountingComponent, properties: CountingProperties) {
-    init {
-        JDABuilder(properties.discordToken)
-            .addEventListeners(countingComponent)
-            .build()
-    }
+    val jda = JDABuilder(properties.discordToken)
+        .addEventListeners(countingComponent)
+        .build()
 }

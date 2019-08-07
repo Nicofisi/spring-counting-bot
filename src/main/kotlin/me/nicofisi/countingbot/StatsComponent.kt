@@ -1,5 +1,9 @@
 package me.nicofisi.countingbot
 
+import me.nicofisi.countingbot.data.ChannelRepository
+import me.nicofisi.countingbot.data.CountInfoRepository
+import me.nicofisi.countingbot.data.UserRepository
+import me.nicofisi.countingbot.util.deleteWithFailFeedback
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import org.slf4j.LoggerFactory
@@ -27,7 +31,7 @@ class StatsComponent(
     private val userRepository: UserRepository,
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
-    private val topicUpdateService: TopicUpdateService,
+    private val nextNumberReportService: NextNumberReportService,
     private val properties: CountingProperties
 ) {
     val logger = LoggerFactory.getLogger(javaClass)!!
@@ -76,14 +80,14 @@ class StatsComponent(
 
             val split = rawContent.split(" ")
             val statTypeInput = split[1].toLowerCase()
-            val statType = StatType.values().find { it.aliases.contains(statTypeInput) }
+            val statType = StatType.values().find { statTypeInput in it.aliases }
             if (statType == null) {
                 potentiallyDeleteWithTimedFeedback("There is no such statistic type")
                 return true
             }
 
             val page = max(1, split.getOrNull(2)?.toIntOrNull() ?: 1) // TODO error feedback?
-            val pageRequest = PageRequest.of(page - 1, 15)
+            val pageRequest = PageRequest.of(page - 1, 10)
 
             val (top, endsOnMidnightAt) = when (statType) {
                 StatType.DAY -> {

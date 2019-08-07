@@ -1,4 +1,4 @@
-package me.nicofisi.countingbot
+package me.nicofisi.countingbot.data
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,5 +24,19 @@ interface CountInfoRepository : PagingAndSortingRepository<CCountInfo, CCountInf
             "WHERE a.id.channelId = :channelId AND a.id.date BETWEEN :startDate AND :endDate GROUP BY a.id.userId ORDER BY SUM(a.amount) DESC")
     fun getCountTopByChannelIdBetweenDates(channelId: Long, startDate: Date, endDate: Date, pageable: Pageable): Page<CTopQueryResult>
 
-    fun deleteAllByIdChannelId(channelId: Long): List<CCountInfo>
+    @Query("SELECT SUM(a.amount) FROM CCountInfo a WHERE a.id.channelId = :channelId AND a.id.date = :date")
+    fun getCountSumByChannelIdAndDate(channelId: Long, date: Date): Int
+
+    @Query("SELECT SUM(a.amount) FROM CCountInfo a WHERE a.id.channelId = :channelId AND a.id.userId = :userId")
+    fun getCountSumByChannelIdAndUserId(channelId: Long, userId: Long): Int
+
+    fun getAllByIdChannelIdAndIdUserId(channelId: Long, userId: Long): List<CCountInfo>
+
+    fun deleteAllByIdChannelId(channelId: Long)
+}
+
+interface UnlockedAchievementRepository : PagingAndSortingRepository<CUnlockedAchievement, CUnlockedAchievementId> {
+    fun findAllByIdUserIdAndIdChannelId(userId: Long, channelId: Long): List<CUnlockedAchievement>
+
+    fun deleteAllByIdChannelId(channelId: Long)
 }

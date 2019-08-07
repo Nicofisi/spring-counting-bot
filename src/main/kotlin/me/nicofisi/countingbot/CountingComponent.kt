@@ -1,5 +1,19 @@
 package me.nicofisi.countingbot
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import me.nicofisi.countingbot.achievements.Achievement
+import me.nicofisi.countingbot.achievements.AchievementApplierComponent
+import me.nicofisi.countingbot.data.CChannel
+import me.nicofisi.countingbot.data.CCountInfo
+import me.nicofisi.countingbot.data.CCountInfoId
+import me.nicofisi.countingbot.data.CUser
+import me.nicofisi.countingbot.data.ChannelRepository
+import me.nicofisi.countingbot.data.CountInfoRepository
+import me.nicofisi.countingbot.data.UnlockedAchievementRepository
+import me.nicofisi.countingbot.data.UserRepository
+import me.nicofisi.countingbot.util.deleteWithFailFeedback
 import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.channel.text.update.TextChannelUpdateTopicEvent
@@ -10,7 +24,9 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.sql.Date
+import java.time.Duration
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 @Component
@@ -18,8 +34,10 @@ class CountingComponent(
     private val userRepository: UserRepository,
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
-    private val topicUpdateService: TopicUpdateService,
+    private val unlockedAchievementRepository: UnlockedAchievementRepository,
+    private val nextNumberReportService: NextNumberReportService,
     private val statsComponent: StatsComponent,
+    private val achievementApplierComponent: AchievementApplierComponent,
     private val properties: CountingProperties
 ) : ListenerAdapter() {
     val logger = LoggerFactory.getLogger(javaClass)!!
@@ -34,7 +52,7 @@ class CountingComponent(
         val channel = event.channel
         val guild = event.guild
         val author = message.author
-        val member = message.member ?: throw RuntimeException("Author is not a member: " + author.name)
+        val member = message.member
         val rawContent = message.contentRaw
         val prefix = properties.discordPrefix
 
@@ -42,8 +60,8 @@ class CountingComponent(
 
         val countingChannel = channelRepository.findByIdOrNull(channel.idLong)
 
-        fun isOp() = properties.discordAdminIds.contains(author.idLong) ||
-                member.hasPermission(Permission.MANAGE_SERVER)
+        fun isOp() = author.idLong in properties.discordAdminIds ||
+                (member?.hasPermission(Permission.MANAGE_SERVER) ?: false) // null for webhooks
 
         if (statsComponent.onGuildMessageReceived(event)) return
 
@@ -75,7 +93,14 @@ class CountingComponent(
             "${prefix}add" -> {
                 if (!requireOpWithFeedback()) return
 
-                channelRepository.save(CChannel(channel.idLong, null, channel.name, guild.name))
+                channelRepository.save(
+                    CChannel(
+                        channel.idLong,
+                        null,
+                        channel.name,
+                        guild.name
+                    )
+                )
                 channel.sendMessage("Done").queue()
                 return
             }
@@ -85,6 +110,7 @@ class CountingComponent(
                 countingChannel?.run {
                     channelRepository.delete(this)
                     countInfoRepository.deleteAllByIdChannelId(id)
+                    unlockedAchievementRepository.deleteAllByIdChannelId(id)
                 }
                 channel.sendMessage("Done").queue()
                 return
@@ -102,7 +128,12 @@ class CountingComponent(
                 || countingChannel.lastUserId == author.idLong
                 || !CountingLogic.messageMatchesNumber(rawContent, expectedNumber)
             ) {
-                message.deleteWithFailFeedback()
+                if (rawContent.length > 10) {
+                    message.addReaction("\uD83E\uDD4A").queue()
+                    message.deleteWithFailFeedback(delay = Duration.ofSeconds(5))
+                } else {
+                    message.deleteWithFailFeedback()
+                }
                 return
             }
 
@@ -115,16 +146,48 @@ class CountingComponent(
 
             channelRepository.save(countingChannel)
 
-            val countingUser = userRepository.findByIdOrNull(author.idLong) ?: CUser(author.idLong, "")
+            val countingUser = userRepository.findByIdOrNull(author.idLong) ?: CUser(
+                author.idLong,
+                ""
+            )
             countingUser.cachedName = author.name
             userRepository.save(countingUser)
 
-            val countInfoId = CCountInfoId(author.idLong, channel.idLong, Date.valueOf(LocalDate.now()))
-            val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CCountInfo(countInfoId, 0)
+            val countInfoId = CCountInfoId(
+                author.idLong,
+                channel.idLong,
+                Date.valueOf(LocalDate.now())
+            )
+            val countInfo = countInfoRepository.findByIdOrNull(countInfoId) ?: CCountInfo(
+                countInfoId,
+                0
+            )
             countInfo.amount++
             countInfoRepository.save(countInfo)
 
-            topicUpdateService.channelsToUpdate.add(channel)
+            nextNumberReportService.scheduleForUpdate(channel)
+
+            GlobalScope.launch {
+                delay(1000) // to let the database save the count
+
+                val unlockedAchievements =
+                    unlockedAchievementRepository.findAllByIdUserIdAndIdChannelId(author.idLong, channel.idLong)
+                val unlockedAchievementIds = unlockedAchievements.map { it.id.achievementId }
+
+                var justUnlockedAmount = 0
+
+                Achievement.values()
+                    .filterNot { it.id in unlockedAchievementIds }
+                    .forEach { achievement ->
+                        if (achievement.checker?.check(countingUser, countingChannel) == true) {
+                            justUnlockedAmount++
+
+                            achievementApplierComponent.announceAndSaveAchievement(
+                                achievement, author, channel, unlockedAchievements.size + justUnlockedAmount
+                            )
+                        }
+                    }
+            }
         }
     }
 
@@ -141,6 +204,6 @@ class CountingComponent(
             return // only digits changed, aka probably it's us who changed the topic
         }
 
-        topicUpdateService.tryUpdateChannelTopic(event.channel)
+        nextNumberReportService.tryUpdateChannelTopic(event.channel)
     }
 }
