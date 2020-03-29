@@ -140,7 +140,6 @@ enum class Achievement(val id: Int, val checker: AchievementChecker?, val descri
         null,
         "Use the ranking command for the first time"
     )
-
 }
 
 interface AchievementChecker {
@@ -155,8 +154,7 @@ data class FirstXCountsChecker(val counts: Int) : AchievementChecker {
     }
 }
 
-data class XForXDaysInRowChecker(val counts: Int, val days: Int) :
-    AchievementChecker {
+data class XForXDaysInRowChecker(val counts: Int, val days: Int) : AchievementChecker {
     private var countInfoRepository = ApplicationContextGetter.context.getBean(CountInfoRepository::class.java)
 
     override fun check(user: CUser, channel: CChannel): Boolean {
@@ -174,8 +172,7 @@ data class XForXDaysInRowChecker(val counts: Int, val days: Int) :
     }
 }
 
-data class XForXDaysInTotalChecker(val counts: Int, val days: Int) :
-    AchievementChecker {
+data class XForXDaysInTotalChecker(val counts: Int, val days: Int) : AchievementChecker {
     private var countInfoRepository = ApplicationContextGetter.context.getBean(CountInfoRepository::class.java)
 
     override fun check(user: CUser, channel: CChannel): Boolean {

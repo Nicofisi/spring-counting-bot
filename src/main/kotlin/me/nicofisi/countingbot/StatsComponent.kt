@@ -1,7 +1,11 @@
 package me.nicofisi.countingbot
 
+import me.nicofisi.countingbot.achievements.Achievement
+import me.nicofisi.countingbot.achievements.AchievementApplierComponent
+import me.nicofisi.countingbot.data.CUnlockedAchievementId
 import me.nicofisi.countingbot.data.ChannelRepository
 import me.nicofisi.countingbot.data.CountInfoRepository
+import me.nicofisi.countingbot.data.UnlockedAchievementRepository
 import me.nicofisi.countingbot.data.UserRepository
 import me.nicofisi.countingbot.util.deleteWithFailFeedback
 import net.dv8tion.jda.api.EmbedBuilder
@@ -33,8 +37,10 @@ class StatsComponent(
     private val userRepository: UserRepository,
     private val channelRepository: ChannelRepository,
     private val countInfoRepository: CountInfoRepository,
+    private val unlockedAchievementRepository: UnlockedAchievementRepository,
     private val nextNumberReportService: NextNumberReportService,
-    private val properties: CountingProperties
+    private val properties: CountingProperties,
+    private val achievementApplierComponent: AchievementApplierComponent
 ) {
     val logger = LoggerFactory.getLogger(javaClass)!!
 
@@ -46,10 +52,12 @@ class StatsComponent(
         val message = event.message
         val channel = event.channel
         val guild = event.guild
-//        val author = message.author
+        val author = message.author
 //        val member = message.member
         val rawContent = message.contentRaw
 //        val prefix = properties.discordPrefix
+
+        if (author.isBot) return false
 
         val thisCountingChannel = channelRepository.findByIdOrNull(channel.idLong)
 
@@ -68,7 +76,7 @@ class StatsComponent(
             }
 
             if (mentionedChannel == null) {
-                potentiallyDeleteWithTimedFeedback("Not an ID of a channel in this guild")
+                potentiallyDeleteWithTimedFeedback("The mentioned channel does not exist within this guild")
                 return true
             }
 
@@ -191,6 +199,21 @@ class StatsComponent(
             }
 
             channel.sendMessage(embed.build()).queue()
+
+            if (!unlockedAchievementRepository.existsById(
+                    CUnlockedAchievementId(
+                        author.idLong,
+                        mentionedCountingChannel.id,
+                        Achievement.CHECK_STATS_FOR_THE_FIRST_TIME.id
+                    )
+                )
+            ) {
+                achievementApplierComponent.announceAndSaveAchievement(
+                    Achievement.CHECK_STATS_FOR_THE_FIRST_TIME,
+                    author,
+                    channel
+                )
+            }
 
             return true
         }

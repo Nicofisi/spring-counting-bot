@@ -27,8 +27,15 @@ interface CountInfoRepository : PagingAndSortingRepository<CCountInfo, CCountInf
     @Query("SELECT SUM(a.amount) FROM CCountInfo a WHERE a.id.channelId = :channelId AND a.id.date = :date")
     fun getCountSumByChannelIdAndDate(channelId: Long, date: Date): Int
 
+    @Query("SELECT SUM(a.amount) FROM CCountInfo a" +
+            " WHERE a.id.channelId = :channelId AND a.id.date BETWEEN :startDate AND :endDate")
+    fun getCountSumByChannelIdBetweenDates(channelId: Long, startDate: Date, endDate: Date): Int
+
     @Query("SELECT SUM(a.amount) FROM CCountInfo a WHERE a.id.channelId = :channelId AND a.id.userId = :userId")
     fun getCountSumByChannelIdAndUserId(channelId: Long, userId: Long): Int
+
+//    @Query("SELECT DATEADD(day, -1, a.id.date) AS test FROM CCountInfo a")
+//    fun getHighestStreaksByChannelIdBetweenDates(channelId: Long, startDate: Date, endDate: Date, pageable: Pageable)
 
     fun getAllByIdChannelIdAndIdUserId(channelId: Long, userId: Long): List<CCountInfo>
 
@@ -40,3 +47,4 @@ interface UnlockedAchievementRepository : PagingAndSortingRepository<CUnlockedAc
 
     fun deleteAllByIdChannelId(channelId: Long)
 }
+
