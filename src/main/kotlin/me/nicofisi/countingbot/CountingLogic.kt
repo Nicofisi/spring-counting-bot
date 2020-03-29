@@ -29,8 +29,12 @@ object CountingLogic {
             // 123
             val wordInt = word.toIntOrNull()
             if (wordInt != null && wordInt >= 0) {
-                digits.addAll(word.map { it.toString().toInt() })
-                return@forEach
+                val wordInts = word.mapNotNull { it.toString().toIntOrNull() }
+                // to purposely silently fail when numbers start with "-" or "+"
+                if (word.length == wordInts.size) {
+                    digits.addAll(word.map { it.toString().toInt() })
+                    return@forEach
+                }
             }
 
             // one two three
